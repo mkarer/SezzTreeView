@@ -31,6 +31,7 @@ local knNodeHeight = 28;
 local kstrNodeBGColorDefault = "ff121314";
 local kstrNodeBGColorHover = "ff1C1C1F";
 local kstrNodeBGColorActive = "ff27272B";
+local kstrNodeIndicatorColorActive = "ff23D3FF";
 
 -----------------------------------------------------------------------------
 -- Window Definitions
@@ -96,6 +97,15 @@ local function CreateIconPixieXml(strSprite, nLevel)
 	};
 end
 
+local tXmlTreeViewNodeActiveIndicator = {
+	strSprite = "BasicSprites:WhiteFill",
+	cr = kstrNodeIndicatorColorActive,
+	loc = {
+		fPoints = { 0, 0.15, 0, 0.85 },
+		nOffsets = { 0, 0, 3, 0 },
+	},
+};
+
 -----------------------------------------------------------------------------
 -- Node Events
 -----------------------------------------------------------------------------
@@ -154,6 +164,13 @@ function SezzTreeView:OnNodeMouseUp(wndHandler, wndControl, eMouseButton, nLastR
 		if (not self.wndActiveNode or self.wndActiveNode ~= wndControl) then
 			if (self.wndActiveNode) then
 				local wndPreviousActiveNode = self.wndActiveNode;
+				local strPreviousActiveNode = wndPreviousActiveNode:GetParent():GetName();
+
+				if (self.tNodes[strPreviousActiveNode].nIndicatorPixieId) then
+					wndPreviousActiveNode:DestroyPixie(self.tNodes[strPreviousActiveNode].nIndicatorPixieId);
+					self.tNodes[strPreviousActiveNode].nIndicatorPixieId = nil;
+				end
+
 				self.wndActiveNode = nil;
 				self:OnNodeMouseExit(wndPreviousActiveNode, wndPreviousActiveNode);
 			end
@@ -161,6 +178,10 @@ function SezzTreeView:OnNodeMouseUp(wndHandler, wndControl, eMouseButton, nLastR
 			-- Highlight Node
 			self.wndActiveNode = wndControl;
 			wndControl:SetBGColor(kstrNodeBGColorActive);
+			if (not self.tNodes[strNode].nIndicatorPixieId) then
+				self.tNodes[strNode].nIndicatorPixieId = wndControl:AddPixie(tXmlTreeViewNodeActiveIndicator);
+			end
+
 			self:Fire("NodeSelected", strNode);
 		end
 
