@@ -36,48 +36,53 @@ local kstrNodeBGColorActive = "ff27272B";
 -- Window Definitions
 -----------------------------------------------------------------------------
 
-local function CreateNodeXml(strName, strText, nNodeIndent)
-	return {
-		__XmlNode = "Form",
+local tXmlTreeViewNode = {
+	__XmlNode = "Form",
+	Class = "Window",
+	LAnchorPoint = 0, TAnchorPoint = 0, RAnchorPoint = 1, BAnchorPoint = 0,
+	LAnchorOffset = 0, TAnchorOffset = 0, RAnchorOffset = 0, BAnchorOffset = knNodeHeight,
+	IgnoreMouse = 1, Escapable = 0, NoClip = 0, Border = 0, Overlapped = 0, NoClip = 0, RelativeToClient = 1,
+	{
+		__XmlNode = "Control",
 		Class = "Window",
-		Name = strName,
+		Name = "Node",
+		Sprite = "BasicSprites:WhiteFill",
+		Picture = 1,
+		BGColor = kstrNodeBGColorDefault,
 		LAnchorPoint = 0, TAnchorPoint = 0, RAnchorPoint = 1, BAnchorPoint = 0,
 		LAnchorOffset = 0, TAnchorOffset = 0, RAnchorOffset = 0, BAnchorOffset = knNodeHeight,
-		IgnoreMouse = 1, Escapable = 0, NoClip = 0, Border = 0, Overlapped = 0, NoClip = 0, RelativeToClient = 1,
+		IgnoreMouse = 0, Escapable = 0, NoClip = 0, Border = 0, Overlapped = 0, NoClip = 0, RelativeToClient = 1,
+		-- Events
+		{ __XmlNode = "Event", Name = "MouseEnter",			Function = "OnNodeMouseEnter" },
+		{ __XmlNode = "Event", Name = "MouseExit",			Function = "OnNodeMouseExit" },
+		{ __XmlNode = "Event", Name = "MouseButtonDown",	Function = "OnNodeMouseDown" },
+		{ __XmlNode = "Event", Name = "MouseButtonUp",		Function = "OnNodeMouseUp" },
+		-- Pixies
 		{
-			__XmlNode = "Control",
-			Class = "Window",
-			Name = "Node",
-			Sprite = "BasicSprites:WhiteFill",
-			Picture = 1,
-			BGColor = kstrNodeBGColorDefault,
-			LAnchorPoint = 0, TAnchorPoint = 0, RAnchorPoint = 1, BAnchorPoint = 0,
-			LAnchorOffset = 0, TAnchorOffset = 0, RAnchorOffset = 0, BAnchorOffset = knNodeHeight,
-			IgnoreMouse = 0, Escapable = 0, NoClip = 0, Border = 0, Overlapped = 0, NoClip = 0, RelativeToClient = 1,
-			-- Events
-			{ __XmlNode = "Event", Name = "MouseEnter",			Function = "OnNodeMouseEnter" },
-			{ __XmlNode = "Event", Name = "MouseExit",			Function = "OnNodeMouseExit" },
-			{ __XmlNode = "Event", Name = "MouseButtonDown",	Function = "OnNodeMouseDown" },
-			{ __XmlNode = "Event", Name = "MouseButtonUp",		Function = "OnNodeMouseUp" },
-			-- Pixies
-			{
-				__XmlNode = "Pixie",
-				Font = "CRB_Pixel",
-				Text = strText,
-				LAnchorPoint = 0, TAnchorPoint = 0, RAnchorPoint = 1, BAnchorPoint = 1,
-				LAnchorOffset = 30 + nNodeIndent, TAnchorOffset = 0, RAnchorOffset = 0, BAnchorOffset = 0,
-				DT_VCENTER = true,
-				BGColor = "white",
-			},
-			{
-				__XmlNode = "Pixie",
-				Line = true,
-				LAnchorPoint = 0, TAnchorPoint = 1, RAnchorPoint = 1, BAnchorPoint = 1,
-				LAnchorOffset = 0, TAnchorOffset = 0, RAnchorOffset = 0, BAnchorOffset = 0,
-				BGColor = kstrNodeBGColorHover,
-			},
+			__XmlNode = "Pixie",
+			Font = "CRB_Pixel",
+			Text = strText,
+			LAnchorPoint = 0, TAnchorPoint = 0, RAnchorPoint = 1, BAnchorPoint = 1,
+			LAnchorOffset = 30, TAnchorOffset = 0, RAnchorOffset = 0, BAnchorOffset = 0,
+			DT_VCENTER = true,
+			BGColor = "white",
 		},
-	};
+		{
+			__XmlNode = "Pixie",
+			Line = true,
+			LAnchorPoint = 0, TAnchorPoint = 1, RAnchorPoint = 1, BAnchorPoint = 1,
+			LAnchorOffset = 0, TAnchorOffset = 0, RAnchorOffset = 0, BAnchorOffset = 0,
+			BGColor = kstrNodeBGColorHover,
+		},
+	},
+};
+
+local function CreateNodeXml(strName, strText, nNodeIndent)
+	tXmlTreeViewNode.Name = strName;
+	tXmlTreeViewNode[1][5].Text = strText;
+	tXmlTreeViewNode[1][5].LAnchorOffset = 30 + nNodeIndent;
+
+	return tXmlTreeViewNode;
 end
 
 local function CreateIconPixieXml(strSprite, nLevel)
