@@ -12,7 +12,7 @@ local APkg = Apollo.GetPackage(MAJOR);
 if (APkg and (APkg.nVersion or 0) >= MINOR) then return; end
 
 local SezzTreeView = APkg and APkg.tPackage or {};
-local log, CallbackHandler;
+local log;
 local Apollo = Apollo;
 
 -- Lua API
@@ -102,7 +102,7 @@ function SezzTreeView:OnNodeMouseEnter(wndHandler, wndControl)
 		wndControl:SetBGColor(kstrNodeBGColorHover);
 	end
 
-	self.CallbackHandler:Fire("MouseEnter", wndControl:GetName());
+	self:Fire("MouseEnter", wndControl:GetName());
 end
 
 function SezzTreeView:OnNodeMouseExit(wndHandler, wndControl)
@@ -112,7 +112,7 @@ function SezzTreeView:OnNodeMouseExit(wndHandler, wndControl)
 		wndControl:SetBGColor(kstrNodeBGColorDefault);
 	end
 
-	self.CallbackHandler:Fire("MouseExit", wndControl:GetName());
+	self:Fire("MouseExit", wndControl:GetName());
 end
 
 function SezzTreeView:OnNodeMouseDown(wndHandler, wndControl, eMouseButton, nLastRelativeMouseX, nLastRelativeMouseY, bDoubleClick)
@@ -130,10 +130,11 @@ function SezzTreeView:OnNodeMouseDown(wndHandler, wndControl, eMouseButton, nLas
 				local tIconOffsets = self.tNodes[strNode].tPixieIcon.loc.nOffsets;
 				if (not (nLastRelativeMouseX and nLastRelativeMouseY and nLastRelativeMouseX >= tIconOffsets[1] and nLastRelativeMouseX <= tIconOffsets[3] and nLastRelativeMouseY >= tIconOffsets[2])) then
 					self:ToggleNode(strNode);
+					self:Fire("NodeDoubleClick", strNode, true);
 				end
+			else
+				self:Fire("NodeDoubleClick", strNode);
 			end
-
-			self.CallbackHandler:Fire("NodeDoubleClick", strNode);
 		end
 	end
 end
@@ -155,7 +156,7 @@ function SezzTreeView:OnNodeMouseUp(wndHandler, wndControl, eMouseButton, nLastR
 			-- Highlight Node
 			self.wndActiveNode = wndControl;
 			wndControl:SetBGColor(kstrNodeBGColorActive);
-			self.CallbackHandler:Fire("NodeSelected", strNode);
+			self:Fire("NodeSelected", strNode);
 		end
 
 		-- Expand/Collapse
@@ -172,12 +173,13 @@ end
 -- Constructor
 -----------------------------------------------------------------------------
 
-function SezzTreeView:New(wndParent, nLevel)
+function SezzTreeView:New(wndParent)
 	local self = setmetatable({
 		wndParent = wndParent,
-		nLevel = nLevel or 1,
+		nLevel = 1,
 		bRendered = true,
 		nNodes = 0,
+		tCallbacks = {},
 	}, { __index = self });
 
 	self.strRootNode = wndParent:GetName() or kstrNodePrefix;
@@ -185,13 +187,37 @@ function SezzTreeView:New(wndParent, nLevel)
 		[self.strRootNode] = {
 			tChildren = {},
 			nLevel = 0,
+			bIsRootNode = true,
 		},
 	};
 
-	self.CallbackHandler = CallbackHandler:New(SezzTreeView);
 	Apollo.RegisterEventHandler("VarChange_FrameCount", "VisibleItemsCheck", self);
 
 	return self;
+end
+
+-----------------------------------------------------------------------------
+-- Callbacks
+-- I'm too stupid to use Callbackhandeler
+-----------------------------------------------------------------------------
+
+function SezzTreeView:RegisterCallback(strEvent, strFunction, tEventHandler)
+	if (not self.tCallbacks[strEvent]) then
+		self.tCallbacks[strEvent] = {};
+	end
+
+	tinsert(self.tCallbacks[strEvent], { strFunction, tEventHandler });
+end
+
+function SezzTreeView:Fire(strEvent, ...)
+	if (self.tCallbacks[strEvent]) then
+		for _, tCallback in ipairs(self.tCallbacks[strEvent]) do
+			local strFunction = tCallback[1];
+			local tEventHandler = tCallback[2];
+
+			tEventHandler[strFunction](tEventHandler, ...);
+		end
+	end
 end
 
 -----------------------------------------------------------------------------
@@ -222,6 +248,8 @@ local function AddNode(self, strParentNodeName, strText, strIcon, tData)
 		tPixieIcon = tPixieIcon,
 		tData = tData,
 		wndNode = wndNode,
+		tParentNode = tParentNode,
+		strName = strName,
 	};
 
 	-- Done
@@ -251,6 +279,37 @@ function SezzTreeView:GetNodeData(strNode)
 	local tNode = self.tNodes[strNode];
 	if (not tNode) then return; end
 	return tNode.tData;
+end
+
+function SezzTreeView:GetNodeLevel(strNode)
+	local tNode = self.tNodes[strNode];
+	if (not tNode) then return; end
+	return tNode.nLevel;
+end
+
+function SezzTreeView:SelectNode(strNode)
+	local tNode = self.tNodes[strNode];
+	if (not tNode) then return; end
+
+	local tParentNode = tNode.tParentNode;
+	while (tParentNode and tParentNode.bCollapsed) do
+		self:ExpandNode(tParentNode.strName);
+		tParentNode = tParentNode.tParentNode;
+	end
+
+	local wndNode = tNode.wndNode:FindChild("Node");
+	self:OnNodeMouseUp(wndNode, wndNode, GameLib.CodeEnumInputMouse.Left);
+end
+
+function SezzTreeView:GetParentNode(strNode, bIncludeRootNode)
+	local tNode = self.tNodes[strNode];
+	if (not tNode) then return; end
+
+	if (not tNode.tParentNode or (not bIncludeRootNode and tNode.tParentNode.bIsRootNode)) then
+		return;
+	else
+		return tNode.tParentNode.strName;
+	end
 end
 
 -----------------------------------------------------------------------------
@@ -317,6 +376,7 @@ end
 
 function SezzTreeView:CollapseNode(strNode)
 	local tNode = self.tNodes[strNode];
+	if (not tNode) then return; end
 	tNode.bCollapsed = true;
 
 	if (tNode.wndNode and tNode.tPixieIcon) then
@@ -326,12 +386,20 @@ function SezzTreeView:CollapseNode(strNode)
 
 	if (self.bRendered and #tNode.tChildren > 0) then
 		self:Render();
-		self.CallbackHandler:Fire("NodeCollapsed", strNode);
+		self:Fire("NodeCollapsed", strNode);
 	end
 end
 
 function SezzTreeView:ExpandNode(strNode)
 	local tNode = self.tNodes[strNode];
+	if (not tNode) then return; end
+
+	local tParentNode = tNode.tParentNode;
+	while (tParentNode and tParentNode.bCollapsed) do
+		self:ExpandNode(tParentNode.strName);
+		tParentNode = tParentNode.tParentNode;
+	end
+
 	tNode.bCollapsed = false;
 
 	if (tNode.wndNode and tNode.tPixieIcon) then
@@ -341,7 +409,7 @@ function SezzTreeView:ExpandNode(strNode)
 
 	if (self.bRendered and #tNode.tChildren > 0) then
 		self:Render();
-		self.CallbackHandler:Fire("NodeExpanded", strNode);
+		self:Fire("NodeExpanded", strNode);
 	end
 end
 
@@ -398,24 +466,10 @@ end
 -----------------------------------------------------------------------------
 
 function SezzTreeView:OnLoad()
-	local GeminiLogging = Apollo.GetPackage("Gemini:Logging-1.2") and Apollo.GetAddon("GeminiConsole") and Apollo.GetPackage("Gemini:Logging-1.2").tPackage;
-	if (GeminiLogging) then
-		log = GeminiLogging:GetLogger({
-			level = GeminiLogging.DEBUG,
-			pattern = "%d %n %c %l - %m",
-			appender ="GeminiConsole"
-		});
-	else
-		log = setmetatable({}, { __index = function() return function(self, ...) local args = #{...}; if (args > 1) then Print(string.format(...)); elseif (args == 1) then Print(tostring(...)); end; end; end });
-	end
-
-	Apollo.LoadSprites("FontAwesome.xml");
-	CallbackHandler = Apollo.GetPackage("Gemini:CallbackHandler-1.0").tPackage
-
 	-- Font Awesome Sprites
 	-- Sprite loading snippet by Wildstar NASA (MIT)
 	local strPrefix = Apollo.GetAssetFolder();
-	local tToc = XmlDoc.CreateFromFile("toc.xml"):ToTable();
+	local tToc = XmlDoc.CreateFromFile(Apollo.GetAssetFolder() .. "\\toc.xml"):ToTable();
 	for k, v in ipairs(tToc) do
 		local strPath = strmatch(v.Name, "(.*)[\\/]SezzTreeView");
 		if (strPath ~= nil and strPath ~= "") then
@@ -458,4 +512,4 @@ end
 
 -----------------------------------------------------------------------------
 
-Apollo.RegisterPackage(SezzTreeView, MAJOR, MINOR, { "Gemini:CallbackHandler-1.0" });
+Apollo.RegisterPackage(SezzTreeView, MAJOR, MINOR, {});
