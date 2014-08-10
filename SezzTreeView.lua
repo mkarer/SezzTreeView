@@ -15,7 +15,7 @@ local SezzTreeView = APkg and APkg.tPackage or {};
 local Apollo = Apollo;
 
 -- Lua API
-local tinsert, pairs, ipairs, strmatch = table.insert, pairs, ipairs, string.match;
+local tinsert, pairs, ipairs, strmatch, tremove = table.insert, pairs, ipairs, string.match, table.remove;
 
 -----------------------------------------------------------------------------
 
@@ -290,6 +290,46 @@ function SezzTreeView:AddChildNode(strParentNodeName, strText, strIcon, tData)
 	return AddNode(self, strParentNodeName, strText, strIcon, tData);
 end
 
+function SezzTreeView:RemoveNode(strNode, bSkipRedraw)
+	local tNode = self.tNodes[strNode];
+	if (not tNode) then return; end
+
+	-- Remove Children
+	for _, wndChildNode in ipairs(tNode.tChildren) do
+		self:RemoveNode(wndChildNode:GetName());
+	end
+
+	-- Remove Node from Parent
+	local tParentNode = tNode.tParentNode;
+	for i, wndChildNode in ipairs(tParentNode.tChildren) do
+		if (wndChildNode:GetName() == strNode) then
+			tremove(tParentNode.tChildren, i);
+			break;
+		end
+	end
+
+	-- Update Parent Node Arrow Sprite
+	if (#tParentNode.tChildren > 0 and tParentNode.wndNode and tParentNode.tPixieIcon.nId) then
+		local strSprite = tParentNode.bCollapsed and "CaretRight" or "CaretDown";
+		if (strSprite ~= tParentNode.wndNode:GetPixieInfo(tParentNode.tPixieIcon.nId).strSprite) then
+			tParentNode.tPixieIcon.strSprite = "SezzTreeViewSprites:"..strSprite;
+			tParentNode.wndNode:UpdatePixie(tParentNode.tPixieIcon.nId, tParentNode.tPixieIcon);
+		end
+	end
+
+	-- Destroy Node
+	if (tNode.wndNode) then
+		tNode.wndNode:Destroy();
+	end
+
+	self.tNodes[strNode] = nil;
+
+	-- Redraw Tree
+	if (self.bRendered and not bSkipRedraw) then
+		self:Render();
+	end
+end
+
 -----------------------------------------------------------------------------
 -- Node Properties
 -----------------------------------------------------------------------------
@@ -368,14 +408,11 @@ function SezzTreeView:ArrangeNodes(wndParent)
 
 		local nNodeHeight = knNodeHeight; -- height of this node + visible children
 		local tChildNodes = self.tNodes[wndNode:GetName()].tChildren;
+		local strSprite;
 
 		if (#tChildNodes == 0 or tNode.bCollapsed) then
 			-- no children or collapsed
-			if (#tChildNodes == 0) then
-				-- hide icon
-				tNode.tPixieIcon.strSprite = "";
-				tNode.wndNode:UpdatePixie(tNode.tPixieIcon.nId, tNode.tPixieIcon);
-			end
+			strSprite = (#tChildNodes == 0) and "" or "CaretRight";
 
 			-- disable child nodes
 			for _, wndChildNode in ipairs(tChildNodes) do
@@ -385,9 +422,16 @@ function SezzTreeView:ArrangeNodes(wndParent)
 		else
 			-- expanded children
 			nNodeHeight = nNodeHeight + self:ArrangeNodes(wndNode);
+			strSprite = "CaretDown";
 		end
 
 		nTreeHeight = nTreeHeight + nNodeHeight;
+
+		-- Update Arrow Sprite
+		if (strSprite ~= tNode.wndNode:GetPixieInfo(tNode.tPixieIcon.nId).strSprite) then
+			tNode.tPixieIcon.strSprite = "SezzTreeViewSprites:"..strSprite;
+			tNode.wndNode:UpdatePixie(tNode.tPixieIcon.nId, tNode.tPixieIcon);
+		end
 
 		-- Update Node Container Position (TODO: Compare Performance - Move/SetAnchorOffsets)
 		local nPosY = nTreeHeight - nNodeHeight + (nLevel == 0 and 0 or knNodeHeight);
