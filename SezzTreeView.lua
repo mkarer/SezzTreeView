@@ -12,7 +12,6 @@ local APkg = Apollo.GetPackage(MAJOR);
 if (APkg and (APkg.nVersion or 0) >= MINOR) then return; end
 
 local SezzTreeView = APkg and APkg.tPackage or {};
-local log;
 local Apollo = Apollo;
 
 -- Lua API
@@ -338,6 +337,18 @@ function SezzTreeView:GetParentNode(strNode, bIncludeRootNode)
 	end
 end
 
+function SezzTreeView:IterateNodes(strNode)
+	local tNode = self.tNodes[strNode];
+	local tChildren = {};
+	if (tNode) then
+		for _, wndNode in pairs(tNode.tChildren) do
+			tinsert(tChildren, self.tNodes[wndNode:GetName()]);
+		end
+	end
+
+	return ipairs(tChildren);
+end
+
 -----------------------------------------------------------------------------
 -- Render/Update
 -----------------------------------------------------------------------------
@@ -406,7 +417,7 @@ function SezzTreeView:CollapseNode(strNode)
 	tNode.bCollapsed = true;
 
 	if (tNode.wndNode and tNode.tPixieIcon) then
-		tNode.tPixieIcon.strSprite = "TestTree:CaretRight";
+		tNode.tPixieIcon.strSprite = "SezzTreeViewSprites:CaretRight";
 		tNode.wndNode:UpdatePixie(tNode.tPixieIcon.nId, tNode.tPixieIcon);
 	end
 
@@ -429,7 +440,7 @@ function SezzTreeView:ExpandNode(strNode)
 	tNode.bCollapsed = false;
 
 	if (tNode.wndNode and tNode.tPixieIcon) then
-		tNode.tPixieIcon.strSprite = "TestTree:CaretDown";
+		tNode.tPixieIcon.strSprite = "SezzTreeViewSprites:CaretDown";
 		tNode.wndNode:UpdatePixie(tNode.tPixieIcon.nId, tNode.tPixieIcon);
 	end
 
