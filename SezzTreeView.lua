@@ -13,9 +13,11 @@ if (APkg and (APkg.nVersion or 0) >= MINOR) then return; end
 
 local SezzTreeView = APkg and APkg.tPackage or {};
 local Apollo = Apollo;
+local tLibError = Apollo.GetPackage("Gemini:LibError-1.0")
+local fnErrorHandler = tLibError and tLibError.tPackage and tLibError.tPackage.Error or Print
 
 -- Lua API
-local tinsert, pairs, ipairs, strmatch, tremove = table.insert, pairs, ipairs, string.match, table.remove;
+local tinsert, pairs, ipairs, strmatch, tremove, xpcall = table.insert, pairs, ipairs, string.match, table.remove, xpcall;
 
 -----------------------------------------------------------------------------
 
@@ -239,8 +241,9 @@ function SezzTreeView:Fire(strEvent, ...)
 		for _, tCallback in ipairs(self.tCallbacks[strEvent]) do
 			local strFunction = tCallback[1];
 			local tEventHandler = tCallback[2];
+			local tArgs = { ... };
 
-			tEventHandler[strFunction](tEventHandler, ...);
+			xpcall(function() tEventHandler[strFunction](tEventHandler, unpack(tArgs)); end, fnErrorHandler);
 		end
 	end
 end
@@ -319,6 +322,10 @@ function SezzTreeView:RemoveNode(strNode, bSkipRedraw)
 
 	-- Destroy Node
 	if (tNode.wndNode) then
+		if (self.wndActiveNode and self.wndActiveNode:GetParent():GetName() == strNode) then
+			self.wndActiveNode = nil;
+		end
+
 		tNode.wndNode:Destroy();
 	end
 
