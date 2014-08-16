@@ -8,3 +8,6 @@ WildStar Flat Tree View Control
 # DON'T USE GeminiGUI WindowLoad EVENT FOR THIS, IT WILL CRASH YOUR CLIENT
 
 Icons by [Font Awesome](http://fortawesome.github.io) License: [SIL OFL 1.1](http://scripts.sil.org/OFL)
+
+No flat scrollbar yet, custom templates don't work:
+https://forums.wildstar-online.com/forums/index.php?/topic/37949-help-templates-with-custom-sprites/
